@@ -13,8 +13,14 @@ The pipeline will follow the Medallion Architecture:
 - **Silver** — staging models built with dbt, cleaning and typing the raw data
 - **Gold** — mart models built with dbt, implementing a Star Schema for analytics
 
-### Star Schema ER diagram
+### Data Modelling
 <img src="/docs/star-schema-er-diagram.drawio.png" width="480" alt="Star schema ER diagram">
+
+I designed a star schema for the Gold layer to follow industry-standard data warehousing practices. By separating quantitative **Facts** (flight events) from qualitative **Dimensions** (airport and airline context), this design provides several key benefits:
+
+* **Separation of Concerns:** The `fact_flights` table stays lean, containing only numeric metrics and keys, while descriptive metadata is stored in dedicated dimension tables.
+* **Performance at Scale:** With 5.8 million records, joining on numeric keys is much faster than scanning a flat CSV.
+* **Maintainability:** This approach follows the "Don't Repeat Yourself" (DRY) principle. If an airport or airline name changes, the update only happens once in a dimension table rather than across millions of flight records.
 
 ## Data Source
 **[2015 Flight Delays and Cancellations](https://www.kaggle.com/datasets/usdot/flight-delays)** — Kaggle
