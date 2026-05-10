@@ -14,7 +14,7 @@ The pipeline will follow the Medallion Architecture:
 - **Gold** — mart models built with dbt, implementing a Star Schema for analytics
 
 ### Star Schema ER diagram
-![Star schema ER diagram created on diagram.net showing the fact_flights table and the dim_airlines, dim_airports, dim_dates and dim_cancellation_reasons dimension tables.](/docs/star-schema-er-diagram.drawio.png)
+<img src="/docs/star-schema-er-diagram.drawio.png" width="480" alt="Star schema ER diagram">
 
 ## Data Source
 **[2015 Flight Delays and Cancellations](https://www.kaggle.com/datasets/usdot/flight-delays)** — Kaggle
