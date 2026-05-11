@@ -1,0 +1,34 @@
+# project name for this docker compose stack
+name: flights-pipeline
+
+services:
+  # single service — one container running postgresql
+  db:
+    # official postgresql image from docker hub
+    image: postgres:17
+    # # load environment variables from .env file
+    # env_file:
+    #   - .env
+    # pass specific env variables into the container for postgresql setup
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    # map container port 5432 to host port 5432 so we can connect locally
+    ports:
+      - 5432:5432
+    # mount a named volume so data persists when the container stops
+    # attach to the db network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - db
+
+# declare the named volume for persistent storage
+volumes:
+  postgres_data:
+
+# define the network for container communication
+networks:
+  db:
+    driver: bridge
