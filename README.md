@@ -8,19 +8,21 @@ The goal is to apply modern data engineering tools and best practices to build a
 ## Architecture
 > Architecture diagram coming soon
 
-The pipeline will follow the Medallion Architecture:
-- **Bronze** — raw CSV data ingested into PostgreSQL as-is, no transformation
-- **Silver** — staging models built with dbt, cleaning and typing the raw data
-- **Gold** — mart models built with dbt, implementing a Star Schema for analytics
+The pipeline follows the Medallion Architecture:
+- **Bronze (Raw)** — Data is pulled from an AWS S3 bucket using Python and `boto3`. To handle the large file sizes (5.8M rows) on a local machine, the data is loaded into PostgreSQL in chunks of 100,000 rows at a time. This keeps the machine from running out of memory.
+- **Silver (Staging)** — In this step, I'll use dbt to clean up the raw data. This includes fixing mixed-type airport codes and ensuring all columns have the correct data types.
+- **Gold (Warehouse)** — The final stage where data is organised into a star schema. This makes the data easier to query for tools like PowerBI or Tableau.
+
+Currently, the PostgreSQL database is containerised with Docker to ensure a consistent environment across different machines. The extraction and loading scripts are running in a local Python environment at the moment, but I'm planning to containerise the full application logic and use Prefect for orchestration in the next phase.
 
 ### Data Modelling
 <img src="/docs/star-schema-er-diagram.drawio.png" width="480" alt="Star schema ER diagram">
 
 I designed a star schema for the Gold layer to follow industry-standard data warehousing practices. By separating quantitative **Facts** (flight events) from qualitative **Dimensions** (airport and airline context), this design provides several key benefits:
 
-* **Separation of Concerns:** The `fact_flights` table stays lean, containing only numeric metrics and keys, while descriptive metadata is stored in dedicated dimension tables.
-* **Performance at Scale:** With 5.8 million records, joining on numeric keys is much faster than scanning a flat CSV.
-* **Maintainability:** This approach follows the "Don't Repeat Yourself" (DRY) principle. If an airport or airline name changes, the update only happens once in a dimension table rather than across millions of flight records.
+- The `fact_flights` table stays lean, containing only numeric metrics and keys, while descriptive metadata is stored in dedicated dimension tables.
+- With 5.8 million records, joining on numeric keys is much faster than scanning a flat CSV.
+- This approach follows the "Don't Repeat Yourself" (DRY) principle. If an airport or airline name changes, the update only happens once in a dimension table rather than across millions of flight records.
 
 ## Data Source
 **[2015 Flight Delays and Cancellations](https://www.kaggle.com/datasets/usdot/flight-delays)** — Kaggle
@@ -35,7 +37,14 @@ Three CSV files:
 flights-prod-style-dwh-pipeline/
 │
 ├── data/
-│   └── bronze/
+│   └── raw/
+│
+├── db/
+│   ├── bronze_schema.sql
+│   └── warehouse_schema.sql
+│
+├── docs/
+│   └── star-schema-er-diagram.drawio.png
 │
 ├── exploration/
 │   ├── inspect_airlines.py
@@ -43,11 +52,14 @@ flights-prod-style-dwh-pipeline/
 │   └── inspect_flights.py
 │
 ├── ingestion/
+│   └── extract_from_s3.py
+│
+├── loading/
+│   └── load_to_bronze.py
+│
 ├── dbt_flights/
 ├── orchestration/
 ├── tests/
-├── docs/
-│
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -63,4 +75,6 @@ Before writing any pipeline code, I profiled each CSV file to understand the dat
 **flights.csv** — 5.8 million rows, 31 columns. Key findings:
 - Cancellation-related columns (`CANCELLATION_REASON`, `AIR_SYSTEM_DELAY` etc) have high null counts as expected — cancelled flights won't have delay values
 - `ARRIVAL_DELAY` has nulls for diverted and cancelled flights
-- `CANCELLATION_REASON` uses single letter codes (A, B, C, D) that will need decoding in the staging layer
+- `CANCELLATION_REASON` uses single letter codes (A, B, C, D) that will need decoding in the Silver layer
+- `ORIGIN_AIRPORT` and `DESTINATION_AIRPORT` contain mixed types (3-letter IATA codes and 5-digit numeric IDs) which will need to be cleaned in the Silver layer
+- The file is too large for standard `pd.read_csv` on most local machines - needs chunking
