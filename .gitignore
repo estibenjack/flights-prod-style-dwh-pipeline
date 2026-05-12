@@ -4,3 +4,7 @@ __pycache__/
 data/raw/
 *.pyc
 data/
+logs/
+**/logs/
+target/
+**/target/

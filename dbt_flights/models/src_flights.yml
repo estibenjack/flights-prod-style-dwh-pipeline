@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: 'Raw flight data extracted from S3 via Python script'
+    database: flights_pipeline
+    schema: public
+    tables:
+      - name: raw_flights
+      - name: raw_airports
+      - name: raw_airlines
