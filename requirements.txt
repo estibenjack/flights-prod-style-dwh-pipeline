@@ -1,3 +1,4 @@
+dbt-postgres==1.9.0
 boto3==1.43.6
 botocore==1.43.6
 jmespath==1.1.0

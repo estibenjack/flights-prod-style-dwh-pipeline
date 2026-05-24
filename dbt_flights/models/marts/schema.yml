@@ -1,0 +1,222 @@
+version: 2
+
+models:
+  - name: dim_airlines
+    description: "Airline dimension. One row per carrier, sourced from stg_airlines."
+    columns:
+      - name: airline_sk
+        description: "Surrogate key."
+        tests:
+          - not_null
+          - unique
+
+      - name: iata_code
+        description: "2-letter IATA carrier code. Natural business key."
+        tests:
+          - not_null
+          - unique
+
+      - name: airline_name
+        description: "Full carrier name."
+        tests:
+          - not_null
+
+  - name: dim_airports
+    description: "Airport dimension. One row per airport, sourced from stg_airports."
+    columns:
+      - name: airport_sk
+        description: "Surrogate key."
+        tests:
+          - not_null
+          - unique
+
+      - name: iata_code
+        description: "3-letter IATA airport code. Natural business key."
+        tests:
+          - not_null
+          - unique
+
+      - name: airport_name
+        description: "Full airport name."
+
+      - name: city
+        description: "City the airport serves."
+
+      - name: state
+        description: "US state abbreviation."
+
+      - name: country
+        description: "Country name."
+
+      - name: latitude
+        description: "Airport latitude. Null for a small number of airports in the source data."
+
+      - name: longitude
+        description: "Airport longitude. Null for a small number of airports in the source data."
+
+  - name: dim_dates
+    description: >
+      Date dimension derived from actual flight dates in the dataset.
+      One row per calendar date. Day of week follows DOT/BTS encoding: 1=Monday, 7=Sunday.
+    columns:
+      - name: date_sk
+        description: "Surrogate key."
+        tests:
+          - not_null
+          - unique
+
+      - name: full_date
+        description: "Calendar date."
+        tests:
+          - not_null
+          - unique
+
+      - name: year
+        description: "Calendar year."
+        tests:
+          - not_null
+
+      - name: month
+        description: "Calendar month (1–12)."
+        tests:
+          - not_null
+
+      - name: day
+        description: "Day of month."
+        tests:
+          - not_null
+
+      - name: day_of_week
+        description: "Day of week (1=Monday, 7=Sunday)."
+        tests:
+          - not_null
+
+      - name: quarter
+        description: "Calendar quarter (1–4)."
+        tests:
+          - not_null
+
+      - name: is_weekend
+        description: "True for Saturday (6) and Sunday (7)."
+        tests:
+          - not_null
+
+  - name: dim_cancellation_reasons
+    description: >
+      Static lookup for BTS cancellation reason codes.
+      Hard-coded so all four codes are always present regardless of flight data.
+    columns:
+      - name: cancellation_reason_sk
+        description: "Surrogate key."
+        tests:
+          - not_null
+          - unique
+
+      - name: reason_code
+        description: "Single-letter BTS cancellation code (A/B/C/D)."
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              values: ['A', 'B', 'C', 'D']
+
+      - name: reason_description
+        description: "Human-readable description of the cancellation reason."
+        tests:
+          - not_null
+
+  - name: fact_flights
+    description: >
+      Grain: one row per flight operation. Cancelled flights are included with null
+      time and delay metrics. Surrogate keys resolve to the four dimension tables.
+      Flights with unresolvable airline, airport, or date keys are excluded (INNER JOIN).
+    columns:
+      - name: airline_id
+        description: "Foreign key to dim_airlines."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_airlines')
+              field: airline_sk
+
+      - name: date_id
+        description: "Foreign key to dim_dates."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_dates')
+              field: date_sk
+
+      - name: origin_airport_id
+        description: "Foreign key to dim_airports for the departure airport."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_airports')
+              field: airport_sk
+
+      - name: destination_airport_id
+        description: "Foreign key to dim_airports for the arrival airport."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_airports')
+              field: airport_sk
+
+      - name: cancellation_reason_id
+        description: "Foreign key to dim_cancellation_reasons. Null for non-cancelled flights."
+        tests:
+          - relationships:
+              to: ref('dim_cancellation_reasons')
+              field: cancellation_reason_sk
+
+      - name: flight_number
+        description: "Airline-assigned flight number."
+
+      - name: tail_number
+        description: "FAA aircraft tail registration number."
+
+      - name: scheduled_departure
+        description: "Scheduled departure time in HHMM integer format."
+
+      - name: actual_departure
+        description: "Actual departure time in HHMM integer format. Null for cancelled flights."
+
+      - name: departure_delay
+        description: "Departure delay in minutes. Negative = early. Null for cancelled flights."
+
+      - name: scheduled_arrival
+        description: "Scheduled arrival time in HHMM integer format."
+
+      - name: actual_arrival
+        description: "Actual arrival time in HHMM integer format. Null for cancelled or diverted flights."
+
+      - name: arrival_delay
+        description: "Arrival delay in minutes. Negative = early. Null for cancelled or diverted flights."
+
+      - name: elapsed_time
+        description: "Actual total flight duration in minutes. Null for cancelled flights."
+
+      - name: air_time
+        description: "Wheels-off to wheels-on duration in minutes. Null for cancelled flights."
+
+      - name: distance
+        description: "Distance between origin and destination airports in miles."
+        tests:
+          - not_null
+
+      - name: is_cancelled
+        description: "True if the flight was cancelled."
+        tests:
+          - not_null
+
+      - name: is_diverted
+        description: "True if the flight was diverted."
+        tests:
+          - not_null
+
+      - name: departure_delay_flag
+        description: "True if departure_delay > 0. Null for cancelled flights."
+
+      - name: arrival_delay_flag
+        description: "True if arrival_delay > 0. Null for cancelled or diverted flights."

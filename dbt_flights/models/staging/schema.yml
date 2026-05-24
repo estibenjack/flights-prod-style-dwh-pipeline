@@ -1,0 +1,188 @@
+version: 2
+
+models:
+  - name: stg_airlines
+    description: >
+      Cleaned airline dimension data from the bronze source.
+      One row per IATA carrier code.
+    columns:
+      - name: airline_id
+        description: "2-letter IATA carrier code. Primary business key."
+        tests:
+          - not_null
+          - unique
+
+      - name: airline_name
+        description: "Full carrier name."
+        tests:
+          - not_null
+
+  - name: stg_airports
+    description: >
+      Cleaned airport dimension data from the bronze source.
+      One row per IATA airport code. A small number of airports
+      have null latitude/longitude — expected from the source data.
+    columns:
+      - name: airport_id
+        description: "3-letter IATA airport code. Primary business key."
+        tests:
+          - not_null
+          - unique
+
+      - name: airport_name
+        description: "Full airport name."
+
+      - name: city
+        description: "City the airport serves."
+
+      - name: state
+        description: "US state abbreviation."
+
+      - name: country
+        description: "Country name."
+
+      - name: latitude
+        description: "Airport latitude. Null for a small number of airports in the source data."
+
+      - name: longitude
+        description: "Airport longitude. Null for a small number of airports in the source data."
+
+  - name: stg_flights
+    description: >
+      Cleaned flight events from the bronze source. Rows where origin or destination
+      airport codes are numeric (5-digit IDs rather than IATA) are excluded — those
+      airports have no match in the airports dimension. One row per flight operation.
+    columns:
+      - name: flight_year
+        description: "Year of the scheduled flight date."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [2015]
+
+      - name: flight_month
+        description: "Month of the scheduled flight date (1–12)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+      - name: flight_day
+        description: "Day of month of the scheduled flight date."
+        tests:
+          - not_null
+
+      - name: day_of_week
+        description: "Day of the week (1=Monday, 7=Sunday)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6, 7]
+
+      - name: airline_iata_code
+        description: "2-letter IATA carrier code. Foreign key to stg_airlines."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_airlines')
+              field: airline_id
+
+      - name: flight_number
+        description: "Airline-assigned flight number."
+
+      - name: tail_number
+        description: "FAA aircraft tail registration number."
+
+      - name: origin_airport_iata
+        description: "3-letter IATA code for departure airport. Foreign key to stg_airports."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_airports')
+              field: airport_id
+
+      - name: destination_airport_iata
+        description: "3-letter IATA code for arrival airport. Foreign key to stg_airports."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_airports')
+              field: airport_id
+
+      - name: scheduled_departure
+        description: "Scheduled departure time in HHMM integer format."
+
+      - name: actual_departure
+        description: "Actual departure time in HHMM integer format. Null for cancelled flights."
+
+      - name: departure_delay
+        description: "Departure delay in minutes. Negative values indicate early departure. Null for cancelled flights."
+
+      - name: taxi_out
+        description: "Taxi-out time in minutes. Null for cancelled flights."
+
+      - name: scheduled_arrival
+        description: "Scheduled arrival time in HHMM integer format."
+
+      - name: actual_arrival
+        description: "Actual arrival time in HHMM integer format. Null for cancelled or diverted flights."
+
+      - name: arrival_delay
+        description: "Arrival delay in minutes. Negative values indicate early arrival. Null for cancelled or diverted flights."
+
+      - name: taxi_in
+        description: "Taxi-in time in minutes. Null for cancelled or diverted flights."
+
+      - name: scheduled_elapsed_time
+        description: "Scheduled total flight duration in minutes."
+
+      - name: actual_elapsed_time
+        description: "Actual total flight duration in minutes. Null for cancelled flights."
+
+      - name: air_time
+        description: "Wheels-off to wheels-on duration in minutes. Null for cancelled flights."
+
+      - name: distance
+        description: "Distance between origin and destination airports in miles."
+        tests:
+          - not_null
+
+      - name: is_cancelled
+        description: "True if the flight was cancelled."
+        tests:
+          - not_null
+
+      - name: is_diverted
+        description: "True if the flight was diverted to an unplanned airport."
+        tests:
+          - not_null
+
+      - name: departure_delay_flag
+        description: "True if departure_delay > 0. Null for cancelled flights where delay is undefined."
+
+      - name: arrival_delay_flag
+        description: "True if arrival_delay > 0. Null for cancelled or diverted flights."
+
+      - name: air_system_delay
+        description: "Minutes of delay attributable to the National Air System. Null on non-delayed flights."
+
+      - name: security_delay
+        description: "Minutes of delay attributable to security. Null on non-delayed flights."
+
+      - name: airline_delay
+        description: "Minutes of delay attributable to the carrier. Null on non-delayed flights."
+
+      - name: late_aircraft_delay
+        description: "Minutes of delay caused by a late-arriving aircraft. Null on non-delayed flights."
+
+      - name: weather_delay
+        description: "Minutes of delay attributable to weather. Null on non-delayed flights."
+
+      - name: cancellation_reason_code
+        description: "Single-letter cancellation code (A/B/C/D). Null for non-cancelled flights."
+        tests:
+          - accepted_values:
+              values: ['A', 'B', 'C', 'D']
+
+      - name: cancellation_reason_description
+        description: "Human-readable cancellation reason derived from the code. Null for non-cancelled flights."
